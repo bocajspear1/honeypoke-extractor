@@ -1,0 +1,8 @@
+[project]
+name = "honeypoke_extractor"
+version = "0.0.1"
+dependencies = [
+    "requests",
+    "elasticsearch==8.11.1",
+    'importlib-metadata; python_version<"3.8"',
+]
