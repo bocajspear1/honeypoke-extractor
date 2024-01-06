@@ -90,20 +90,77 @@ class HoneyPokeExtractor():
         
         return result_list
 
-    def get_top_addresses(self, count=25, time_start=None, time_end=None):
+    def get_top_addresses(self, count=25, port=None, protocol=None, time_start=None, time_end=None):
         agg_name = "ips-agg"
 
         time_start, time_end = self._get_times(time_start, time_end)
 
-        results = self._client.search(index="honeypoke", aggs={
+        search_filter = {
+            "bool": {
+                "must": [],
+                "filter": [
+                    {
+                        "range": {
+                            "time": {
+                                "format": "strict_date_optional_time",
+                                "gte": time_start,
+                                "lte": time_end
+                            }
+                        }
+                    }
+                ],
+                "should": [],
+                "must_not": []
+            }
+        }
+
+        if port is not None and protocol is not None:
+            search_filter['bool']['filter'].append(
+                {
+                    'term': {
+                        "port": port,
+                    }
+                }
+            )
+            search_filter['bool']['filter'].append(
+                {
+                    'term': {
+                        "protocol": protocol,
+                    }
+                }
+            )
+
+        results = self._client.search(index=self._index, aggs={
             agg_name: {
                 "terms": {
                     "field": "remote_ip",
                     "size": count
                 }
             },
-        }, query={"bool": {
-        "must": [],
+        }, query=search_filter
+        ,size=0)
+
+        ip_list = []
+        for bucket in results['aggregations'][agg_name]['buckets']:
+            ip_list.append({
+                "address": bucket['key'],
+                "count": bucket['doc_count']
+            })
+
+        return ip_list
+    
+    def get_input_contains(self, items, count=100, skip=0, time_start=None, time_end=None):
+        time_start, time_end = self._get_times(time_start, time_end)
+
+        results = self._client.search(index=self._index, query={"bool": {
+        "must": [
+            {
+                "terms": {
+                    "input": items,
+                }
+            }
+            
+        ],
         "filter": [
             {
                 "range": {
@@ -118,13 +175,13 @@ class HoneyPokeExtractor():
         "should": [],
         "must_not": []
         }}
-        ,size=0)
+        , size=count, from_=skip)
 
-        ip_list = []
-        for bucket in results['aggregations'][agg_name]['buckets']:
-            ip_list.append({
-                "address": bucket['key'],
-                "count": bucket['doc_count']
-            })
+        return_list = []
 
-        return ip_list
+        for item in results['hits']['hits']:
+            return_item = item['_source']
+            return_item['_id'] = item['_id']
+            return_list.append(return_item)
+
+        return return_list

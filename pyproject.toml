@@ -1,8 +1,45 @@
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "honeypoke_extractor"
-version = "0.0.1"
+version = "0.1.0"
+description = "Script to extract interesting information from HoneyPoke data"
 dependencies = [
-    "requests",
+    "requests==2.31.0",
     "elasticsearch==8.11.1",
     'importlib-metadata; python_version<"3.8"',
 ]
+authors = [
+    {name = "Jacob Hartman", email = "jacob@j2h2.com"},
+]
+maintainers = [
+    {name = "Jacob Hartman", email = "jacob@j2h2.com"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+
+    # Indicate who your project is intended for
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+
+    # Pick your license as you wish (see also "license" above)
+    "License :: OSI Approved :: MIT License",
+
+    # Specify the Python versions you support here.
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/bocajspear1/honeypoke-extractor"
+Repository = "https://github.com/bocajspear1/honeypoke-extractor"
+Issues = "https://github.com/bocajspear1/honeypoke-extractor/issues"
