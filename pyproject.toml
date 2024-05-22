@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "honeypoke_extractor"
-version = "0.1.0"
+version = "0.1.2"
 description = "Script to extract interesting information from HoneyPoke data"
 dependencies = [
     "requests==2.31.0",
@@ -43,3 +43,6 @@ classifiers = [
 Homepage = "https://github.com/bocajspear1/honeypoke-extractor"
 Repository = "https://github.com/bocajspear1/honeypoke-extractor"
 Issues = "https://github.com/bocajspear1/honeypoke-extractor/issues"
+
+[tool.setuptools]
+packages = ["honeypoke_extractor"]

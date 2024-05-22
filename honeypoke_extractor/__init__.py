@@ -185,3 +185,32 @@ class HoneyPokeExtractor():
             return_list.append(return_item)
 
         return return_list
+
+    def get_hits(self, count=100, skip=0, time_start=None, time_end=None):
+        time_start, time_end = self._get_times(time_start, time_end)
+
+        results = self._client.search(index=self._index, query={"bool": {
+        "filter": [
+            {
+                "range": {
+                    "time": {
+                        "format": "strict_date_optional_time",
+                        "gte": time_start,
+                        "lte": time_end
+                    }
+                }
+            }
+        ],
+        "should": [],
+        "must_not": []
+        }}
+        , size=count, from_=skip)
+
+        return_list = []
+
+        for item in results['hits']['hits']:
+            return_item = item['_source']
+            return_item['_id'] = item['_id']
+            return_list.append(return_item)
+
+        return return_list
