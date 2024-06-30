@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 import socket
 
+from pprint import pprint
+
 from elasticsearch import Elasticsearch
 
 class HoneyPokeExtractor():

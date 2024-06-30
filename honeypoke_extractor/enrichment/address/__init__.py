@@ -1,8 +1,7 @@
 import requests
 import ipaddress
-import os
-from urllib.parse import urlparse
-import time
+
+from honeypoke_extractor.base import FileCachingItem
 
 class EnrichmentProvider():
     pass
@@ -78,7 +77,7 @@ class FeodoTrackerEnrichment(EnrichmentProvider):
                 return item
         return None
 
-class BlockListEnrichment(EnrichmentProvider):
+class BlockListEnrichment(EnrichmentProvider, FileCachingItem):
     '''Enrichment from a number of blocklists
     
     - https://www.binarydefense.com/banlist.txt (See the lists's comments for usage limitations)
@@ -86,31 +85,17 @@ class BlockListEnrichment(EnrichmentProvider):
     '''
 
     def __init__(self):
-        self._cache_dir = "/tmp/iplists"
-        self._banlist = self._download_list("https://iplists.firehol.org/files/bds_atif.ipset")
-        self._firehol1 = self._download_list("https://iplists.firehol.org/files/firehol_level1.netset")
-        self._firehol2 = self._download_list("https://iplists.firehol.org/files/firehol_level2.netset")
-        self._firehol3 = self._download_list("https://iplists.firehol.org/files/firehol_level3.netset")
-        
 
-    def _download_list(self, url):
-        if not os.path.exists(self._cache_dir):
-            os.mkdir(self._cache_dir)
+        FileCachingItem.__init__(self, "/tmp/iplists")
+        self._banlist = self._get_list("https://iplists.firehol.org/files/bds_atif.ipset")
+        self._firehol1 = self._get_list("https://iplists.firehol.org/files/firehol_level1.netset")
+        self._firehol2 = self._get_list("https://iplists.firehol.org/files/firehol_level2.netset")
+        self._firehol3 = self._get_list("https://iplists.firehol.org/files/firehol_level3.netset")
+        
+    def _get_list(self, url):
+        
+        iplist_data = self.get_url(url)
         return_list = []
-        
-
-        iplist_data = ""
-        cache_path = os.path.join(self._cache_dir, os.path.basename(urlparse(url).path))
-        if not os.path.exists(cache_path) or os.path.getmtime(cache_path) < (time.time()-24*60*60):
-            print("Downloading")
-            resp = requests.get(url)
-            cache_file = open(cache_path, "w")
-            cache_file.write(resp.text)
-            cache_file.close()
-
-        cache_file = open(cache_path, "r")
-        iplist_data = cache_file.read()
-        cache_file.close()
         
         for line in iplist_data.split("\n"):
             if line.startswith("#") or line.strip() == "":
@@ -127,13 +112,22 @@ class BlockListEnrichment(EnrichmentProvider):
                 return True
         return False
 
+    def enrich(self, addresses):
+        """Takes a single or array of IP addresses and enriches them
+        
+        """
 
-    def enrich(self, address):
-        results = {
-            "binary_defense": self._in_list(self._banlist, address),
-            "firehol_1": self._in_list(self._firehol1, address),
-            "firehol_2": self._in_list(self._firehol2, address),
-            "firehol_3": self._in_list(self._firehol3, address),
-        }
+        if isinstance(addresses, str):
+            addresses = [addresses]
 
-        return results
+        results_map = {}
+
+        for address in addresses:
+            results_map[address] = {
+                "binary_defense": self._in_list(self._banlist, address),
+                "firehol_1": self._in_list(self._firehol1, address),
+                "firehol_2": self._in_list(self._firehol2, address),
+                "firehol_3": self._in_list(self._firehol3, address),
+            }
+
+        return results_map
