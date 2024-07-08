@@ -156,6 +156,9 @@ class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
         self._parse_rules()
         logger.debug("Loaded %d rules", len(self._parsed_rules))
 
+        self._matched_rules = {}
+        self._matched_items = []
+
 
     def _parse_rules(self):
         rules_dir_list = os.listdir(self._cache_dir)
@@ -174,36 +177,34 @@ class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
 
                     self._parsed_rules.append(new_rule)
 
-                        
+    def on_item(self, item):
+        if item['input'].strip() == "":
+            return
 
-    def detect(self, item_list):
+        port_str_id = f"{item['protocol']}/{item['port']}"
 
-        matched_rules = {}
-        return_list = []
-        
-        for item in item_list:
-            if item['input'].strip() == "":
-                continue
+        matched = False
+    
+        for rule in self._parsed_rules:
+            matches, matched_values = rule.matches_data(item['protocol'], item['port'], item['input'])
+            if matches:
+                if rule.message not in self._matched_rules:
+                    self._matched_rules[rule.message] = 0
+                self._matched_rules[rule.message] += 1
 
-            port_str_id = f"{item['protocol']}/{item['port']}"
-        
-            
-            for rule in self._parsed_rules:
-                matches, matched_values = rule.matches_data(item['protocol'], item['port'], item['input'])
-                if matches:
-                    if rule.message not in matched_rules:
-                        matched_rules[rule.message] = 0
-                    matched_rules[rule.message] += 1
+                if 'matched_rules' not in item:
+                    item['matched_rules'] = []
+                item['matched_rules'].append((rule.message, matched_values))
 
-                    if 'matched_rules' not in item:
-                        item['matched_rules'] = []
-                    item['matched_rules'].append((rule.message, matched_values))
+                self._matched_items.append(item)
+                matched = True
+                
+        return matched
 
-                    return_list.append(item)
-
+    def get_results(self):
         return {
-            "rules": matched_rules,
-            "items": return_list
+            "rules": self._matched_rules,
+            "items": self._matched_items
         }
 
 

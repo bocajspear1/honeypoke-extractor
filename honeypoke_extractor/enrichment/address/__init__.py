@@ -1,5 +1,6 @@
 import requests
 import ipaddress
+import time
 
 from honeypoke_extractor.base import FileCachingItem
 
@@ -28,12 +29,23 @@ class IPAPIEnrichment(EnrichmentProvider):
     
     Docs: https://ip-api.com/docs
     '''
-    def enrich(self, address):
-        resp = requests.get(f"http://ip-api.com/json/{address}", headers={
-            "Accept": "application/json"
-        })
-        
-        return resp.json()
+    def enrich(self, addresses):
+
+        if isinstance(addresses, str):
+            addresses = [addresses]
+
+        results_map = {}
+
+        for address in addresses:
+            if address in results_map:
+                continue
+            resp = requests.get(f"http://ip-api.com/json/{address}", headers={
+                "Accept": "application/json"
+            })
+            results_map[address] = resp.json()
+            time.sleep(0.4)
+
+        return results_map
     
 class ThreatFoxEnrichment(EnrichmentProvider):
     '''Enrichment from ThreatFox service

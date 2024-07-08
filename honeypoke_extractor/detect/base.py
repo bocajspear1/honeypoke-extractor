@@ -5,4 +5,9 @@ class DetectionProvider():
 
 
 class ContentDetectionProvider(DetectionProvider):
-    pass
+    
+    def on_item(self, item):
+        raise NotImplementedError
+    
+    def get_results(self):
+        raise NotImplementedError
