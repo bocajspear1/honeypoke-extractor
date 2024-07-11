@@ -212,12 +212,12 @@ class EmergingThreatRules(SnortRuleDetector):
 
     def __init__(self):
         SnortRuleDetector.__init__(self, cache_dir="/tmp/et-snortrules", source_urls=[
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_server.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_specific_apps.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-exploit.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-sql.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-worm.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-scada.rules'
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_server.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_specific_apps.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-exploit.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-sql.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-worm.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-scada.rules',
             'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-scan.rules'
         ])
 

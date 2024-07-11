@@ -188,7 +188,7 @@ class HoneyPokeExtractor():
 
         return return_list
 
-    def get_hits(self, count=100, skip=0, time_start=None, time_end=None):
+    def get_hits(self, detectors=None, count=100, time_start=None, time_end=None):
 
         time_start, time_end = self._get_times(time_start, time_end)
 
@@ -239,8 +239,22 @@ class HoneyPokeExtractor():
             amount_left -= limit
 
             for item in results['hits']['hits']:
+                
                 return_item = item['_source']
                 return_item['_id'] = item['_id']
-                return_list.append(return_item)
+                if detectors is not None:
+                    for detector in detectors:
+                        detector.on_item(return_item)
+                else:
+                    return_list.append(return_item)
 
-        return return_list
+        detector_results = {}
+        for detector in detectors:
+            detector_data = detector.get_results()
+            if 'items' in detector_data:
+                return_list += detector_data['items']
+                del detector_data['items']
+            detector_results[detector.name] = detector_data
+            
+
+        return return_list, detector_results

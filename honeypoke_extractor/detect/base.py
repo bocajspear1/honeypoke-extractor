@@ -5,6 +5,10 @@ class DetectionProvider():
 
 
 class ContentDetectionProvider(DetectionProvider):
+
+    @property
+    def name(self):
+        return self.__class__.__name__
     
     def on_item(self, item):
         raise NotImplementedError
