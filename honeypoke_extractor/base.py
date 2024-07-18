@@ -18,16 +18,18 @@ class FileCachingItem():
         self._grab_wait = grab_wait
 
 
-    def get_url(self, url, read_file=False):
+    def get_url(self, url, read_file=False, headers=None):
         time.sleep(self._grab_wait)
 
         cache_path = os.path.join(self._cache_dir, os.path.basename(urlparse(url).path))
         if not os.path.exists(cache_path) or os.path.getmtime(cache_path) < (time.time()-self._cache_time):
             logger.debug("Downloading %s to %s", url, cache_path)
 
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
+            set_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
+            if headers is not None:
+                set_headers.update(headers)
 
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=set_headers)
             cache_file = open(cache_path, "wb")
             cache_file.write(resp.content)
             cache_file.close()
@@ -40,3 +42,16 @@ class FileCachingItem():
             return return_data
         else:
             return None
+        
+
+class HoneypokeProvider():
+    
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    def on_item(self, item):
+        raise NotImplementedError
+    
+    def get_results(self):
+        raise NotImplementedError

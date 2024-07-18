@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta, datetime, UTC
 import socket
 
 from pprint import pprint
@@ -14,10 +14,10 @@ class HoneyPokeExtractor():
     def _get_times(self, time_start, time_end):
         if time_start is None:
             delta = timedelta(hours=24)
-            time_start = (datetime.now() - delta)
+            time_start = (datetime.now(UTC) - delta)
         
         if time_end is None:
-            time_end = datetime.now()
+            time_end = datetime.now(UTC)
 
         return time_start, time_end
 
@@ -244,16 +244,18 @@ class HoneyPokeExtractor():
                 return_item['_id'] = item['_id']
                 if detectors is not None:
                     for detector in detectors:
-                        detector.on_item(return_item)
-                else:
-                    return_list.append(return_item)
+                        new_item = detector.on_item(return_item)
+                        if new_item is not None:
+                            return_item = new_item
+                
+                return_list.append(return_item)
 
         detector_results = {}
         for detector in detectors:
             detector_data = detector.get_results()
-            if 'items' in detector_data:
-                return_list += detector_data['items']
-                del detector_data['items']
+            # if 'items' in detector_data:
+            #     return_list += detector_data['items']
+            #     del detector_data['items']
             detector_results[detector.name] = detector_data
             
 

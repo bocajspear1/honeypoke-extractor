@@ -1,10 +1,6 @@
+from honeypoke_extractor.enrichment.base import EnrichmentProvider
 
-
-class PortRoleIdentifier():
-
-    @property
-    def name(self):
-        return self.__class__.__name__
+class PortRoleIdentifier(EnrichmentProvider):
 
     def __init__(self):
         self._matched_items = {}
