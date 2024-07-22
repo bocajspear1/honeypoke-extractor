@@ -4,9 +4,9 @@ import time
 import json
 
 from honeypoke_extractor.base import FileCachingItem
-from honeypoke_extractor.enrichment.base import EnrichmentProvider
+from honeypoke_extractor.enrichment.base import IPEnrichmentProvider
 
-class AbuseIPDBEnrichment(EnrichmentProvider):
+class AbuseIPDBEnrichment(IPEnrichmentProvider):
     '''Enrichment from AbuseIPDB service. Requires API key.
     
     Docs: https://docs.abuseipdb.com/
@@ -16,18 +16,19 @@ class AbuseIPDBEnrichment(EnrichmentProvider):
         self._api_key = api_key
         self._ip_map = {}
 
-    def on_item(self, item):
-        remote_ip = item['remote_ip']
-
-        if remote_ip not in self._ip_map:
-            resp = requests.get(f"https://api.abuseipdb.com/api/v2/check?ipAddress={remote_ip}&maxAgeInDays=90&verbose", headers={
+    def on_ip(self, address):
+        if address not in self._ip_map:
+            resp = requests.get(f"https://api.abuseipdb.com/api/v2/check?ipAddress={address}&maxAgeInDays=90&verbose", headers={
             'Key': self._api_key,
                 "Accept": "application/json"
             })
             
-            self._ip_map[remote_ip] = resp.json()['data']
+            self._ip_map[address] = resp.json()['data']
+        return self._ip_map[address]
 
-        item['abuseip'] = self._ip_map[remote_ip]
+    def on_item(self, item):
+        remote_ip = item['remote_ip']
+        item['abuseip'] = self.on_ip(remote_ip)
         return item
 
     def get_results(self):
@@ -35,7 +36,7 @@ class AbuseIPDBEnrichment(EnrichmentProvider):
             "ip_addresses": self._ip_map
         }
          
-class IPAPIEnrichment(EnrichmentProvider):
+class IPAPIEnrichment(IPEnrichmentProvider):
     '''Enrichment from IP-API service
     
     Docs: https://ip-api.com/docs
@@ -44,17 +45,18 @@ class IPAPIEnrichment(EnrichmentProvider):
     def __init__(self):
         self._ip_map = {}
 
-    def on_item(self, item):
-        remote_ip = item['remote_ip']
-
-        if remote_ip not in self._ip_map:
-            resp = requests.get(f"http://ip-api.com/json/{remote_ip}", headers={
+    def on_ip(self, address):
+        if address not in self._ip_map:
+            resp = requests.get(f"http://ip-api.com/json/{address}", headers={
                 "Accept": "application/json"
             })
-            self._ip_map[remote_ip] = resp.json()
+            self._ip_map[address] = resp.json()
             time.sleep(0.4)
-        
-        item['ipapi'] = self._ip_map[remote_ip]
+        return self._ip_map[address]
+
+    def on_item(self, item):
+        remote_ip = item['remote_ip']
+        item['ipapi'] = self.on_ip(remote_ip)
         return item
 
 
@@ -63,7 +65,7 @@ class IPAPIEnrichment(EnrichmentProvider):
             "ip_addresses": self._ip_map
         }
     
-class ThreatFoxEnrichment(EnrichmentProvider):
+class ThreatFoxEnrichment(IPEnrichmentProvider):
     '''Enrichment from ThreatFox service
     
     Docs: https://threatfox.abuse.ch/api/
@@ -72,13 +74,12 @@ class ThreatFoxEnrichment(EnrichmentProvider):
     def __init__(self):
         self._ip_map = {}
 
-    def on_item(self, item):
-        remote_ip = item['remote_ip']
 
-        if remote_ip not in self._ip_map:
+    def on_ip(self, address):
+        if address not in self._ip_map:
             resp = requests.post(f"https://threatfox-api.abuse.ch/api/v1/", json={
                 "query": "search_ioc", 
-                "search_term": remote_ip
+                "search_term": address
             },
             headers={
                 "Accept": "application/json"
@@ -87,12 +88,16 @@ class ThreatFoxEnrichment(EnrichmentProvider):
             data = resp.json()
 
             if data['query_status'] != 'no_result':
-                self._ip_map[remote_ip] = data['data']
+                self._ip_map[address] = data['data']
             else:
-                self._ip_map[remote_ip] = None
+                self._ip_map[address] = None
             time.sleep(0.4)
+        return self._ip_map[address]
+
+    def on_item(self, item):
+        remote_ip = item['remote_ip']
         
-        item['threatfox'] = self._ip_map[remote_ip]
+        item['threatfox'] = self.on_ip(remote_ip)
         return item
 
 
@@ -101,7 +106,7 @@ class ThreatFoxEnrichment(EnrichmentProvider):
             "ip_addresses": self._ip_map
         }
 
-class FeodoTrackerEnrichment(EnrichmentProvider, FileCachingItem):
+class FeodoTrackerEnrichment(IPEnrichmentProvider, FileCachingItem):
     '''Enrichment from Feodo Tracker, which tracks botnets
     
     Docs: https://feodotracker.abuse.ch/blocklist/
@@ -118,17 +123,19 @@ class FeodoTrackerEnrichment(EnrichmentProvider, FileCachingItem):
         self._ip_map = {}
 
 
+    def on_ip(self, address):
+        if address not in self._ip_map:
+            self._ip_map[address] = False
+            for c2_item in self._c2list:
+                if c2_item['ip_address'] == address:
+                    self._ip_map[address] = True
+        return self._ip_map[address]
+            
+
     def on_item(self, item):
         remote_ip = item['remote_ip']
 
-        if remote_ip not in self._ip_map:
-            self._ip_map[remote_ip] = False
-            for c2_item in self._c2list:
-                if c2_item['ip_address'] == remote_ip:
-                    self._ip_map[remote_ip] = True
-            
-        
-        item['feodotracker'] = self._ip_map[remote_ip]
+        item['feodotracker'] = self.on_ip(remote_ip)
         return item
 
 
@@ -137,7 +144,7 @@ class FeodoTrackerEnrichment(EnrichmentProvider, FileCachingItem):
             "ip_addresses": self._ip_map
         }
 
-class BlockListEnrichment(EnrichmentProvider, FileCachingItem):
+class BlockListEnrichment(IPEnrichmentProvider, FileCachingItem):
     '''Enrichment from a number of blocklists
     
     - https://www.binarydefense.com/banlist.txt (See the lists's comments for usage limitations)
@@ -174,19 +181,20 @@ class BlockListEnrichment(EnrichmentProvider, FileCachingItem):
                 return True
         return False
 
+    def on_ip(self, address):
+        if address not in self._ip_map:
+            self._ip_map[address] = {
+                "binary_defense": self._in_list(self._banlist, address),
+                "firehol_1": self._in_list(self._firehol1, address),
+                "firehol_2": self._in_list(self._firehol2, address),
+                "firehol_3": self._in_list(self._firehol3, address),
+            }
+        return self._ip_map[address]
+
     def on_item(self, item):
         remote_ip = item['remote_ip']
 
-        if remote_ip not in self._ip_map:
-            self._ip_map[remote_ip] = {
-                "binary_defense": self._in_list(self._banlist, remote_ip),
-                "firehol_1": self._in_list(self._firehol1, remote_ip),
-                "firehol_2": self._in_list(self._firehol2, remote_ip),
-                "firehol_3": self._in_list(self._firehol3, remote_ip),
-            }
-            
-        
-        item['blocklists'] = self._ip_map[remote_ip]
+        item['blocklists'] = self.on_ip(remote_ip)
         return item
 
 
@@ -195,7 +203,7 @@ class BlockListEnrichment(EnrichmentProvider, FileCachingItem):
             "ip_addresses": self._ip_map
         }
 
-class OTXEnrichment(EnrichmentProvider):
+class OTXEnrichment(IPEnrichmentProvider):
 
     def __init__(self, api_key, url_list=False, passive_dns=True, general=True):
         self._api_key = api_key
@@ -212,30 +220,32 @@ class OTXEnrichment(EnrichmentProvider):
 
         time.sleep(0.2)
         return resp.json()
-
-    def on_item(self, item):
-        remote_ip = item['remote_ip']
-
-        if remote_ip not in self._ip_map:
+    
+    def on_ip(self, address):
+        if address not in self._ip_map:
 
             insert_item = {}
 
             if self._general:
-                resp_json = self._get_section(remote_ip, "general")
+                resp_json = self._get_section(address, "general")
                 insert_item['general'] = resp_json
 
             if self._passive_dns:
-                resp_json = self._get_section(remote_ip, "passive_dns")
+                resp_json = self._get_section(address, "passive_dns")
                 insert_item['passive_dns'] = resp_json['passive_dns']
             
             if self._url_list:
                 # Only returns max of 10
-                resp_json = self._get_section(remote_ip, "url_list")
+                resp_json = self._get_section(address, "url_list")
                 insert_item['url_list'] = resp_json['url_list']
             
-            self._ip_map[remote_ip] = insert_item
+            self._ip_map[address] = insert_item
+        return self._ip_map[address]
 
-        item['otx'] = self._ip_map[remote_ip]
+    def on_item(self, item):
+        remote_ip = item['remote_ip']
+
+        item['otx'] = self.on_ip(remote_ip)
         return item
 
     def get_results(self):
@@ -244,7 +254,7 @@ class OTXEnrichment(EnrichmentProvider):
         }
     
 
-class InternetDBEnrichment(EnrichmentProvider):
+class InternetDBEnrichment(IPEnrichmentProvider):
     '''Enrichment from InternetDB service
     
     Docs: https://internetdb.shodan.io/
@@ -253,21 +263,23 @@ class InternetDBEnrichment(EnrichmentProvider):
     def __init__(self):
         self._ip_map = {}
 
-    def on_item(self, item):
-        remote_ip = item['remote_ip']
-
-        if remote_ip not in self._ip_map:
-            resp = requests.get(f"https://internetdb.shodan.io/{remote_ip}", headers={
+    def on_ip(self, address):
+        if address not in self._ip_map:
+            resp = requests.get(f"https://internetdb.shodan.io/{address}", headers={
                 "Accept": "application/json"
             })
             if resp.status_code == 404:
-                self._ip_map[remote_ip] = None
+                self._ip_map[address] = None
             else:
-                self._ip_map[remote_ip] = resp.json()
+                self._ip_map[address] = resp.json()
             # if 'details' in self._ip_map[remote_ip] and self._ip_map[remote_ip]['details'] == 
             time.sleep(0.2)
-        
-        item['internetdb'] = self._ip_map[remote_ip]
+        return self._ip_map[address]
+
+    def on_item(self, item):
+        remote_ip = item['remote_ip']
+
+        item['internetdb'] = self.on_ip(remote_ip)
         return item
 
 

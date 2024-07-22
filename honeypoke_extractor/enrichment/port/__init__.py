@@ -1,12 +1,12 @@
-from honeypoke_extractor.enrichment.base import EnrichmentProvider
+from honeypoke_extractor.enrichment.base import PortEnrichmentProvider
 
-class PortRoleIdentifier(EnrichmentProvider):
+class PortRoleIdentifier(PortEnrichmentProvider):
 
     def __init__(self):
         self._matched_items = {}
         self._ports = {}
 
-    def get_port_role(self, protocol, port):
+    def on_port(self, protocol, port):
         port_roles = []
 
         if protocol == "tcp":
@@ -143,7 +143,7 @@ class PortRoleIdentifier(EnrichmentProvider):
         port_str_id = f"{protocol}/{port}"
 
         
-        self._ports[port_str_id] = self.get_port_role(protocol, port)
+        self._ports[port_str_id] = self.on_port(protocol, port)
         
         item['roles'] = self._ports[port_str_id]
         
