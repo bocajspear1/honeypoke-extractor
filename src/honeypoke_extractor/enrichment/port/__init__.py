@@ -1,4 +1,4 @@
-from honeypoke_extractor.enrichment.base import PortEnrichmentProvider
+from honeypoke_extractor.base import PortEnrichmentProvider
 
 class PortRoleIdentifier(PortEnrichmentProvider):
 

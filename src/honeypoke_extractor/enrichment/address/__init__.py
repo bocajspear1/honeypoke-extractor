@@ -3,8 +3,7 @@ import ipaddress
 import time
 import json
 
-from honeypoke_extractor.base import FileCachingItem
-from honeypoke_extractor.enrichment.base import IPEnrichmentProvider
+from honeypoke_extractor.base import FileCachingItem, IPEnrichmentProvider
 
 class AbuseIPDBEnrichment(IPEnrichmentProvider):
     '''Enrichment from AbuseIPDB service. Requires API key.
@@ -218,7 +217,7 @@ class OTXEnrichment(IPEnrichmentProvider):
             "Accept": "application/json"
         })
 
-        time.sleep(0.2)
+        time.sleep(1.5)
         return resp.json()
     
     def on_ip(self, address):

@@ -1,4 +1,4 @@
-from .base import ContentDetectionProvider
+from honeypoke_extractor.base import ContentDetectionProvider
 
 import os
 import re
@@ -150,9 +150,12 @@ class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
 
         self._parsed_rules = []
 
+        logger.debug("Loading IDS rules")
+
         for source in source_urls:
             self.get_url(source)
 
+        
         self._parse_rules()
         logger.debug("Loaded %d rules", len(self._parsed_rules))
 
@@ -198,8 +201,11 @@ class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
 
                 self._matched_items.append(item)
                 matched = True
-                
-        return matched
+        
+        if matched == True:
+            return item
+        else:
+            return None
 
     def get_results(self):
         return {

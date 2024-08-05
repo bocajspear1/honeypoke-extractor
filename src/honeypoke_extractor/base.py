@@ -19,10 +19,11 @@ class FileCachingItem():
 
 
     def get_url(self, url, read_file=False, headers=None):
-        time.sleep(self._grab_wait)
+        
 
         cache_path = os.path.join(self._cache_dir, os.path.basename(urlparse(url).path))
         if not os.path.exists(cache_path) or os.path.getmtime(cache_path) < (time.time()-self._cache_time):
+            time.sleep(self._grab_wait)
             logger.debug("Downloading %s to %s", url, cache_path)
 
             set_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
@@ -35,6 +36,7 @@ class FileCachingItem():
             cache_file.close()
 
         if read_file:
+            
             cache_file = open(cache_path, "r")
             return_data = cache_file.read()
             cache_file.close()
@@ -55,3 +57,19 @@ class HoneypokeProvider():
     
     def get_results(self):
         raise NotImplementedError
+    
+class EnrichmentProvider(HoneypokeProvider):
+    pass
+
+class IPEnrichmentProvider(EnrichmentProvider):
+
+    def on_ip(self, address):
+        raise NotImplementedError
+    
+class PortEnrichmentProvider(EnrichmentProvider):
+
+    def on_port(self, port):
+        raise NotImplementedError
+
+class ContentDetectionProvider(HoneypokeProvider):
+    pass

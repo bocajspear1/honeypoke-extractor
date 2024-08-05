@@ -1,7 +1,7 @@
 from pprint import pprint
 from datetime import datetime, timedelta
 
-from .base import ContentDetectionProvider
+from honeypoke_extractor.base import ContentDetectionProvider
 
 class PortPatternDetector():
 
@@ -19,10 +19,11 @@ class PortPatternDetector():
 
 class ScanPatternDetector(ContentDetectionProvider):
 
-    def __init__(self, wide_scan=60, tall_scan=6, brute_force=30):
+    def __init__(self, wide_scan=60, tall_scan=6, brute_force=30, recalculate=False):
         self._wide_scan = wide_scan
         self._tall_scan = tall_scan
         self._brute_force = brute_force
+        self._recalculate = recalculate
 
         self._ip_map = {}
         
@@ -37,15 +38,15 @@ class ScanPatternDetector(ContentDetectionProvider):
             self._ip_map[source_ip][port_str_id] = []
 
         self._ip_map[source_ip][port_str_id].append(item)
-        
-    def get_results(self):
-        
+
+
+    def _calculate(self):
         results = {
             'wide_scans': [],
             'brute_forces': [],
             'tall_scans': []
         }
-        
+
         for source_ip in self._ip_map:
             if len(self._ip_map[source_ip].keys()) > self._tall_scan:
                 results['tall_scans'].append((source_ip, list(self._ip_map[source_ip].keys())))
@@ -78,6 +79,7 @@ class ScanPatternDetector(ContentDetectionProvider):
                 for seen_host in seen_hosts:
                     if len(seen_hosts[seen_host]) > self._brute_force:
                         results['brute_forces'].append((source_ip, port_str_id, seen_host, len(seen_hosts[seen_host])))
-
-        return results
+        
+    def get_results(self):
+        return self._calculate()
         

@@ -1,4 +1,4 @@
-from .base import ContentDetectionProvider
+from honeypoke_extractor.base import ContentDetectionProvider
 
 import re
 import base64
@@ -12,7 +12,7 @@ class PatternFindDetector(ContentDetectionProvider):
 
     def on_item(self, item):
         if item['input'].strip() == "":
-            return
+            return None
 
         inputs = []
         inputs.append(item['input'])
@@ -24,9 +24,13 @@ class PatternFindDetector(ContentDetectionProvider):
             values = self.on_input(input_val)
 
         if len(values) > 0:
-            item['found'] = values
+            item[self.name + 'Found'] = values
             self._commands = self._commands.union(set(values))
             self._matched_items.append(item)
+        
+            return item
+        else:
+            return None
 
     def get_results(self):
         return { 

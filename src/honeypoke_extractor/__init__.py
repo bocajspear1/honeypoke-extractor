@@ -3,7 +3,7 @@ import socket
 
 from pprint import pprint
 
-from honeypoke_extractor.enrichment.base import IPEnrichmentProvider, PortEnrichmentProvider
+from honeypoke_extractor.base import IPEnrichmentProvider, PortEnrichmentProvider
 
 from elasticsearch import Elasticsearch
 
@@ -216,7 +216,7 @@ class HoneyPokeExtractor():
 
         return ip_list
     
-    def get_hits(self, detectors=None, count=100, time_start=None, time_end=None, contains=None):
+    def get_hits(self, detectors=None, enrichments=None, count=100, time_start=None, time_end=None, contains=None, filter_ports=None, filter_remote_ips=None):
 
         time_start, time_end = self._get_times(time_start, time_end)
 
@@ -231,6 +231,41 @@ class HoneyPokeExtractor():
                     "input": contains,
                 }
             })
+
+        must_not = []
+
+        # Filter out certain remote IP addresses
+        if filter_remote_ips is not None:
+            for remote_ip in filter_remote_ips:
+                must_not.append({
+                    "term": {
+                        "remote_ip": remote_ip
+                    }
+                })
+
+        # Filter out certain ports
+        if filter_ports is not None:
+            must_not_subfilter = {
+                "bool": {
+                    "filter": []
+                }
+            }
+            for port in filter_ports:
+                port_split = port.split("/")
+                protocol = port_split[0]
+                port_int = int(port_split[1])
+                must_not_subfilter['bool']['filter'].append({
+                    "term" : { 
+                        "port": port_int
+                    }
+                })
+                must_not_subfilter['bool']['filter'].append({
+                    "term" : { 
+                        "protocol" : protocol,
+                    }
+                })
+                must_not.append(must_not_subfilter)
+            
                 
         while amount_left > 0: 
 
@@ -253,7 +288,7 @@ class HoneyPokeExtractor():
                     }
                 ],
                 "should": [],
-                "must_not": []
+                "must_not": must_not
             }}
 
             
@@ -283,12 +318,23 @@ class HoneyPokeExtractor():
                 
                 return_item = item['_source']
                 return_item['_id'] = item['_id']
+
+                do_enrich = False
                 if detectors is not None:
                     for detector in detectors:
-                        new_item = detector.on_item(return_item)
+                        detector_results = detector.on_item(return_item)
+                        if detector_results is not None:
+                            do_enrich = True
+                            return_item = detector_results
+
+                else:
+                    do_enrich = True
+                
+                if enrichments is not None and do_enrich:
+                    for enrichment in enrichments:
+                        new_item = enrichment.on_item(return_item)
                         if new_item is not None:
                             return_item = new_item
-                
                 return_list.append(return_item)
 
 
