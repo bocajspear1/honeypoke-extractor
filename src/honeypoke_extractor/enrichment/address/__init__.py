@@ -49,10 +49,42 @@ class IPAPIEnrichment(IPEnrichmentProvider):
             resp = requests.get(f"http://ip-api.com/json/{address}", headers={
                 "Accept": "application/json"
             })
-            self._ip_map[address] = resp.json()
-            time.sleep(0.4)
+            try:
+                self._ip_map[address] = resp.json()
+            except json.decoder.JSONDecodeError:
+                raise ValueError
+            time.sleep(2)
         return self._ip_map[address]
+    
+    def bulk(self, address_list):
 
+        offset = 0
+        result_map = {}
+
+        while offset < len(address_list):
+
+            chunk = address_list[offset:offset+100]
+
+            resp = requests.post("http://ip-api.com/batch", json=chunk, headers={
+                "Accept": "application/json"
+            })
+            offset += 100
+
+            if int(resp.headers.get("X-Rl", 0)) < 2:
+                time.sleep(int(resp.headers.get("X-Ttl", 60)))
+            else:
+                time.sleep(1)
+
+            for ip_addr in chunk:
+                for item in resp.json():
+                    if item['query'] == ip_addr:
+                        result_map[ip_addr] = item
+                if ip_addr not in result_map:
+                    result_map[ip_addr] = None
+
+        return result_map
+            
+        
     def on_item(self, item):
         remote_ip = item['remote_ip']
         item['ipapi'] = self.on_ip(remote_ip)

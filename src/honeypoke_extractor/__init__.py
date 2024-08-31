@@ -216,7 +216,8 @@ class HoneyPokeExtractor():
 
         return ip_list
     
-    def get_hits(self, detectors=None, enrichments=None, count=100, time_start=None, time_end=None, contains=None, filter_ports=None, filter_remote_ips=None):
+    def get_hits(self, detectors=None, enrichments=None, bulk_ip_enrichments=None, count=100, time_start=None, time_end=None, 
+                 contains=None, filter_ports=None, filter_remote_ips=None, return_matches=False):
 
         time_start, time_end = self._get_times(time_start, time_end)
 
@@ -320,12 +321,15 @@ class HoneyPokeExtractor():
                 return_item['_id'] = item['_id']
 
                 do_enrich = False
+                do_insert = True
                 if detectors is not None:
                     for detector in detectors:
                         detector_results = detector.on_item(return_item)
                         if detector_results is not None:
                             do_enrich = True
                             return_item = detector_results
+                        elif return_matches:
+                            do_insert = False
 
                 else:
                     do_enrich = True
@@ -335,7 +339,8 @@ class HoneyPokeExtractor():
                         new_item = enrichment.on_item(return_item)
                         if new_item is not None:
                             return_item = new_item
-                return_list.append(return_item)
+                if do_insert:
+                    return_list.append(return_item)
 
 
         if detectors is None:
@@ -343,10 +348,17 @@ class HoneyPokeExtractor():
         detector_results = {}
         for detector in detectors:
             detector_data = detector.get_results()
-            # if 'items' in detector_data:
-            #     return_list += detector_data['items']
-            #     del detector_data['items']
             detector_results[detector.name] = detector_data
-            
+        
+
+
+        if bulk_ip_enrichments is not None:
+            ip_list = []
+            for item in return_list:
+                if item['remote_ip'] not in ip_list:
+                    ip_list.append(item['remote_ip'])
+            for bulk_enrich in bulk_ip_enrichments:
+                detector_results[bulk_enrich.name] = bulk_enrich.bulk(ip_list)
+
 
         return return_list, detector_results

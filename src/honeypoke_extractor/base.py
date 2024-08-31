@@ -66,6 +66,11 @@ class IPEnrichmentProvider(EnrichmentProvider):
     def on_ip(self, address):
         raise NotImplementedError
     
+    def bulk(self, address_list):
+        result_list = []
+        for item in address_list:
+            result_list.append(self.on_ip(item))
+    
 class PortEnrichmentProvider(EnrichmentProvider):
 
     def on_port(self, port):

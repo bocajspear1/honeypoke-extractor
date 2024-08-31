@@ -79,6 +79,7 @@ class ScanPatternDetector(ContentDetectionProvider):
                 for seen_host in seen_hosts:
                     if len(seen_hosts[seen_host]) > self._brute_force:
                         results['brute_forces'].append((source_ip, port_str_id, seen_host, len(seen_hosts[seen_host])))
+        return results
         
     def get_results(self):
         return self._calculate()

@@ -238,7 +238,6 @@ class SnortOrgRules(SnortRuleDetector):
             if not member.isfile():
                 continue
             filter_member = member.name.replace("..", "").replace("/", "").replace("\\", "")
-            print(filter_member)
 
             data = rules_tar.extractfile(member)
             with open(os.path.join(cache_dir, filter_member), "wb") as out:
