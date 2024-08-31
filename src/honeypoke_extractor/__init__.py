@@ -1,5 +1,8 @@
-from datetime import timedelta, datetime, UTC
+from datetime import timedelta, datetime
 import socket
+
+from datetime import timezone
+UTC = timezone.utc
 
 from pprint import pprint
 
