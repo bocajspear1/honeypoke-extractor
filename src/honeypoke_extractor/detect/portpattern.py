@@ -61,12 +61,12 @@ class ScanPatternDetector(ContentDetectionProvider):
                     already_found = False
                     for host in seen_hosts:
                         for host_item in seen_hosts[host]:
-                            my_time = datetime.fromisoformat(host_item['time'])      
+                            my_time = datetime.fromisoformat(host_item['time'].split("+")[0])      
                             for other_host in seen_hosts:
                                 if other_host == host:
                                     continue
                                 for other_host_item in seen_hosts[other_host]:
-                                    other_time = datetime.fromisoformat(other_host_item['time'])
+                                    other_time = datetime.fromisoformat(other_host_item['time'].split("+")[0])
                                     time_diff = None
                                     if other_time >= my_time:
                                         time_diff = other_time - my_time
