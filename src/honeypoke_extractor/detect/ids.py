@@ -1,4 +1,4 @@
-from .base import ContentDetectionProvider
+from honeypoke_extractor.base import ContentDetectionProvider
 
 import os
 import re
@@ -150,11 +150,17 @@ class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
 
         self._parsed_rules = []
 
+        logger.debug("Loading IDS rules")
+
         for source in source_urls:
             self.get_url(source)
 
+        
         self._parse_rules()
         logger.debug("Loaded %d rules", len(self._parsed_rules))
+
+        self._matched_rules = {}
+        self._matched_items = []
 
 
     def _parse_rules(self):
@@ -174,36 +180,37 @@ class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
 
                     self._parsed_rules.append(new_rule)
 
-                        
+    def on_item(self, item):
+        if item['input'].strip() == "":
+            return
 
-    def detect(self, item_list):
+        port_str_id = f"{item['protocol']}/{item['port']}"
 
-        matched_rules = {}
-        return_list = []
+        matched = False
+    
+        for rule in self._parsed_rules:
+            matches, matched_values = rule.matches_data(item['protocol'], item['port'], item['input'])
+            if matches:
+                if rule.message not in self._matched_rules:
+                    self._matched_rules[rule.message] = 0
+                self._matched_rules[rule.message] += 1
+
+                if 'matched_rules' not in item:
+                    item['matched_rules'] = []
+                item['matched_rules'].append((rule.message, matched_values))
+
+                self._matched_items.append(item)
+                matched = True
         
-        for item in item_list:
-            if item['input'].strip() == "":
-                continue
+        if matched == True:
+            return item
+        else:
+            return None
 
-            port_str_id = f"{item['protocol']}/{item['port']}"
-        
-            
-            for rule in self._parsed_rules:
-                matches, matched_values = rule.matches_data(item['protocol'], item['port'], item['input'])
-                if matches:
-                    if rule.message not in matched_rules:
-                        matched_rules[rule.message] = 0
-                    matched_rules[rule.message] += 1
-
-                    if 'matched_rules' not in item:
-                        item['matched_rules'] = []
-                    item['matched_rules'].append((rule.message, matched_values))
-
-                    return_list.append(item)
-
+    def get_results(self):
         return {
-            "rules": matched_rules,
-            "items": return_list
+            "rules": self._matched_rules,
+            "items": self._matched_items
         }
 
 
@@ -211,12 +218,12 @@ class EmergingThreatRules(SnortRuleDetector):
 
     def __init__(self):
         SnortRuleDetector.__init__(self, cache_dir="/tmp/et-snortrules", source_urls=[
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_server.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_specific_apps.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-exploit.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-sql.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-worm.rules'
-            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-scada.rules'
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_server.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_specific_apps.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-exploit.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-sql.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-worm.rules',
+            'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-scada.rules',
             'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-scan.rules'
         ])
 
@@ -231,7 +238,6 @@ class SnortOrgRules(SnortRuleDetector):
             if not member.isfile():
                 continue
             filter_member = member.name.replace("..", "").replace("/", "").replace("\\", "")
-            print(filter_member)
 
             data = rules_tar.extractfile(member)
             with open(os.path.join(cache_dir, filter_member), "wb") as out:

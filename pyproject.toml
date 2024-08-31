@@ -1,12 +1,12 @@
 
 [build-system]
-requires = ["setuptools >= 61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
 [project]
-name = "honeypoke_extractor"
-version = "0.1.2"
-description = "Script to extract interesting information from HoneyPoke data"
+name = "honeypoke-extractor"
+version = "0.3.3"
+description = "Library for extracting and enriching data from HoneyPoke ElasticSearch instances."
 dependencies = [
     "requests==2.31.0",
     "elasticsearch==8.11.1",
@@ -14,6 +14,7 @@ dependencies = [
 ]
 authors = [
     {name = "Jacob Hartman", email = "jacob@j2h2.com"},
+    {name = "Jacob Hartman", email = "junyunharold1@gmail.com"},
 ]
 maintainers = [
     {name = "Jacob Hartman", email = "jacob@j2h2.com"},
@@ -38,11 +39,14 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
+requires-python = ">=3.8"
 
 [project.urls]
 Homepage = "https://github.com/bocajspear1/honeypoke-extractor"
 Repository = "https://github.com/bocajspear1/honeypoke-extractor"
 Issues = "https://github.com/bocajspear1/honeypoke-extractor/issues"
 
-[tool.setuptools]
-packages = ["honeypoke_extractor"]
+# [tool.setuptools]
+# packages = ["honeypoke_extractor"]
+[tool.pdm]
+distribution = true

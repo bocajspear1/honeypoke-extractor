@@ -1,6 +1,8 @@
 from pprint import pprint
 from datetime import datetime, timedelta
 
+from honeypoke_extractor.base import ContentDetectionProvider
+
 class PortPatternDetector():
 
     def __init__(self):
@@ -15,38 +17,42 @@ class PortPatternDetector():
 
         return detections
 
-class ScanPatternDetector():
+class ScanPatternDetector(ContentDetectionProvider):
 
-    def __init__(self):
-        pass
+    def __init__(self, wide_scan=60, tall_scan=6, brute_force=30, recalculate=False):
+        self._wide_scan = wide_scan
+        self._tall_scan = tall_scan
+        self._brute_force = brute_force
+        self._recalculate = recalculate
 
-    def detect(self, item_list):
+        self._ip_map = {}
+        
+    def on_item(self, item):
+        source_ip = item['remote_ip']
+        if source_ip not in self._ip_map:
+            self._ip_map[source_ip] = {}
+        
+        port_str_id = f"{item['protocol']}/{item['port']}"
 
-        ip_map = {}
-        for item in item_list:
-            source_ip = item['remote_ip']
-            if source_ip not in ip_map:
-                ip_map[source_ip] = {}
-            
-            port_str_id = f"{item['protocol']}/{item['port']}"
+        if port_str_id not in self._ip_map[source_ip]:
+            self._ip_map[source_ip][port_str_id] = []
 
-            if port_str_id not in ip_map[source_ip]:
-                ip_map[source_ip][port_str_id] = []
+        self._ip_map[source_ip][port_str_id].append(item)
 
-            ip_map[source_ip][port_str_id].append(item)
 
+    def _calculate(self):
         results = {
             'wide_scans': [],
             'brute_forces': [],
             'tall_scans': []
         }
-        
-        for source_ip in ip_map:
-            if len(ip_map[source_ip].keys()) > 5:
-                results['tall_scans'].append((source_ip, list(ip_map[source_ip].keys())))
-            for port_str_id in ip_map[source_ip]:
+
+        for source_ip in self._ip_map:
+            if len(self._ip_map[source_ip].keys()) > self._tall_scan:
+                results['tall_scans'].append((source_ip, list(self._ip_map[source_ip].keys())))
+            for port_str_id in self._ip_map[source_ip]:
                 seen_hosts = {} 
-                for item in ip_map[source_ip][port_str_id]:
+                for item in self._ip_map[source_ip][port_str_id]:
                     if item['host'] not in seen_hosts:
                         seen_hosts[item['host']] = []
                     seen_hosts[item['host']].append(item)
@@ -66,12 +72,15 @@ class ScanPatternDetector():
                                         time_diff = other_time - my_time
                                     else:
                                         time_diff = my_time - other_time
-                                    if time_diff <= timedelta(minutes=1) and not already_found:
+                                    if time_diff <= timedelta(seconds=self._wide_scan) and not already_found:
                                         already_found = True
 
                                         results['wide_scans'].append((source_ip, port_str_id, list(seen_hosts.keys())))
                 for seen_host in seen_hosts:
-                    if len(seen_hosts[seen_host]) > 20:
-                        results['brute_forces'].append((source_ip, port_str_id, len(seen_hosts[seen_host])))
-
+                    if len(seen_hosts[seen_host]) > self._brute_force:
+                        results['brute_forces'].append((source_ip, port_str_id, seen_host, len(seen_hosts[seen_host])))
         return results
+        
+    def get_results(self):
+        return self._calculate()
+        
