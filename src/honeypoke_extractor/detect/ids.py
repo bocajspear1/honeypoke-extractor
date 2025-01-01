@@ -7,6 +7,9 @@ import tarfile
 
 import suricataparser
 import regex
+import dpkt
+
+import urllib.parse
 
 
 import logging
@@ -21,8 +24,9 @@ class SnortRule():
     def __init__(self, rule_data):
 
         self._message = None
-        self._port = None
+        self._ports = None
         self._protocol = None
+        self._offset = 0
         self._str_matches = []
         self._regex_matches = []
         matched_values = []
@@ -31,6 +35,22 @@ class SnortRule():
 
         self._parse_rule(rule_data)
 
+    def var_replace(self, in_var):
+        if in_var == "$HTTP_PORTS":
+            return [80, 443]
+        elif in_var == "$SSH_PORTS":
+            return [22]
+        elif ":" in in_var:
+            colon_split = in_var.split(":")
+            start_int = int(colon_split[0])
+            end_int = int(colon_split[1])
+            new_range = []
+            while start_int <= end_int:
+                new_range.append(start_int)
+                start_int += 1
+            return new_range
+        return None
+
     def _parse_rule(self, rule_data):
 
         header_split_1 = rule_data.header.split("->")
@@ -38,9 +58,28 @@ class SnortRule():
         dest_split = header_split_1[1].strip().split(" ")
 
         self._protocol = source_split[0].lower()
+        if self._protocol == "icmp":
+            return
 
-        if dest_split[1].isnumeric():
-            self._port = int(dest_split[1])
+        port_list = []
+        if dest_split[1].startswith("["):
+            dest_port_list = dest_split[1][1:-1].split(",")
+            for port_item in dest_port_list:
+                new_val = self.var_replace(port_item)
+                if new_val is not None:
+                    port_list += new_val
+                else:
+                    port_list.append(int(port_item))
+        elif dest_split[1].isnumeric():
+            new_val = self.var_replace(dest_split[1])
+            if new_val is not None:
+                port_list += new_val
+            else:
+                port_list.append(int(dest_split[1]))
+            
+        
+        if len(port_list) > 0:
+            self._ports = port_list
 
         for option in rule_data.options:
             if option.name == "content":
@@ -61,10 +100,22 @@ class SnortRule():
                 
                 self._str_matches.append({
                     "value": ast.literal_eval(content_str),
-                    "do_match": do_match
+                    "do_match": do_match,
+                    "nocase": False
                 })
+            elif option.name == "depth":
+                self._str_matches[-1]['depth'] = int(option.value)
+            elif option.name == "offset":
+                self._str_matches[-1]['offset'] = int(option.value)
+            elif option.name.startswith("http_") :
+                if 'sections' not in self._str_matches[-1]:
+                    self._str_matches[-1]['sections'] = []
+                self._str_matches[-1]['sections'].append(str(option.name))
+                # print("hi", option.name, option.value)
             elif option.name == "msg":
                 self._message = option.value[1:-1]
+            elif option.name == "nocase":
+                self._str_matches[-1]['nocase'] = True
             elif option.name == "flow":
                 if "from_server" in option.value:
                     self._inbound = False
@@ -82,9 +133,13 @@ class SnortRule():
                 self._regex_matches.append({
                     "value": regex.compile(re_value, flags=regex.POSIX)
                 })
-            else:
-                # print(option)
+            elif option.name in ("reference", "metadata", "rev", "sid", "classtype"):
                 pass
+            else:
+                print(option)
+                pass
+        # print(self._str_matches[-1].get('sections', ''))
+        # print("")
 
     def matches_data(self, protocol, port, data):
 
@@ -95,10 +150,58 @@ class SnortRule():
         if protocol != self._protocol:
             return False, []
         
-        if self._port is not None and port != self._port:
+        if self._ports is not None and port not in self._ports:
             return False, []
         
+        http_data = None
+        
         for str_match in self._str_matches:
+            
+            if 'sections' in str_match:
+                http_data = None
+                if str_match['sections'][0].startswith("http_"):
+                    try:
+                        # We need to parse newlines
+                        http_data = dpkt.http.Request(data.replace("\\r", "\r").replace("\\n", "\n").encode())
+                    except (dpkt.dpkt.NeedData, dpkt.dpkt.UnpackError):
+                        continue
+                    
+                if http_data is not None:
+                    if str_match['sections'][0] in ("http_client_body", "http_raw_body"):
+                        data = http_data.body.decode()
+                    elif str_match['sections'][0] == "http_uri":
+                        data = http_data.uri
+                    elif str_match['sections'][0] == "http_raw_uri":
+                        data = data.split("\r\n")[0].split(" ")[1]
+                    elif str_match['sections'][0] == "http_cookie":
+                        if 'cookie' in http_data.headers:
+                            data = http_data.headers['cookie']
+                    elif str_match['sections'][0] == "http_raw_cookie":
+                        if 'cookie' in http_data.headers:
+                            data = urllib.parse.quote_plus(http_data.headers['cookie'])
+                    elif str_match['sections'][0] == "http_method":
+                        data = http_data.method
+                    elif str_match['sections'][0] == "http_header":
+                        header_full = ""
+                        for header in http_data.headers:
+                            header_full += header + ": " + str(http_data.headers[header]).lower() + "\r\n"
+                        data = header_full
+                        str_match['value'] = str_match['value'].lower()
+                    else:
+                        pass
+                        # print(str_match['sections'][0])
+                    
+            if str_match['nocase']:
+                str_match['value'] = str_match['value'].lower()
+                data = data.lower()
+
+            start = 0
+            end = len(data)
+            if 'offset' in str_match:
+                start = str_match['offset']
+            if 'depth' in str_match:
+                end = start + str_match['depth']
+            data = data[start:end]
             if str_match['value'] in data:
                 if str_match['do_match']:
                     does_match = does_match and True
@@ -132,8 +235,8 @@ class SnortRule():
         return self._protocol
     
     @property
-    def port(self):
-        return self._port
+    def ports(self):
+        return self._ports
     
     @property
     def inbound(self):
@@ -141,7 +244,7 @@ class SnortRule():
     
 
     def __str__(self):
-        return f"{self._protocol}/{self._port} -> {self._message} {self._str_matches} AND {self._regex_matches}"
+        return f"{self._protocol}/{self._ports} -> {self._message} {self._str_matches} AND {self._regex_matches}"
 
 class SnortRuleDetector(ContentDetectionProvider, FileCachingItem):
 
