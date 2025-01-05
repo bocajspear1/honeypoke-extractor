@@ -1,0 +1,18 @@
+[
+    {
+        "time": "2024-12-31T22:54:32+0000",
+        "remote_ip": "159.203.57.179",
+        "remote_port": 45548,
+        "protocol": "tcp",
+        "port": 80,
+        "input": "POST /client/api HTTP/1.1\\r\\nHost: 1.2.3.4:80\\r\\nUser-Agent: testme123\\r\\nContent-Length: 38\\r\\nContent-Type: application/x-www-form-urlencoded\\r\\n\\r\\ncommand=samlSsoLogin&SAMLResponse=asdf\\r\\n\\r\\n",
+        "is_binary": false,
+        "use_ssl": false,
+        "location": {
+            "lat": 43.65,
+            "lon": -79.36
+        },
+        "host": "honeypoke-2023-2",
+        "_id": "6QHtHpQBDzsdJecfjUZf"
+    }
+]

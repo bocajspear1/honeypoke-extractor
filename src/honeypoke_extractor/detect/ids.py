@@ -107,6 +107,10 @@ class SnortRule():
                 self._str_matches[-1]['depth'] = int(option.value)
             elif option.name == "offset":
                 self._str_matches[-1]['offset'] = int(option.value)
+            elif option.name == "distance":
+                self._str_matches[-1]['distance'] = int(option.value)
+            elif option.name == "within":
+                self._str_matches[-1]['within'] = int(option.value)
             elif option.name.startswith("http_") :
                 if 'sections' not in self._str_matches[-1]:
                     self._str_matches[-1]['sections'] = []
@@ -133,7 +137,7 @@ class SnortRule():
                 self._regex_matches.append({
                     "value": regex.compile(re_value, flags=regex.POSIX)
                 })
-            elif option.name in ("reference", "metadata", "rev", "sid", "classtype"):
+            elif option.name in ("reference", "metadata", "rev", "sid", "classtype", "fast_pattern", 'threshold'):
                 pass
             else:
                 print(option)
@@ -154,16 +158,29 @@ class SnortRule():
             return False, []
         
         http_data = None
+        http_invalid = False
+        start_data = data
+        last_find_offset = 0
         
         for str_match in self._str_matches:
+
+            # For each str_match item, reset the data
+            data = start_data
+
             
             if 'sections' in str_match:
-                http_data = None
+                
                 if str_match['sections'][0].startswith("http_"):
+                    # Skip this str match entirely if HTTP parse failed since we match HTTP stuff
+                    if http_invalid:
+                        does_match = does_match and False
+                        continue
                     try:
                         # We need to parse newlines
                         http_data = dpkt.http.Request(data.replace("\\r", "\r").replace("\\n", "\n").encode())
                     except (dpkt.dpkt.NeedData, dpkt.dpkt.UnpackError):
+                        http_invalid = True
+                        does_match = does_match and False
                         continue
                     
                 if http_data is not None:
@@ -195,17 +212,26 @@ class SnortRule():
                 str_match['value'] = str_match['value'].lower()
                 data = data.lower()
 
+            
+
             start = 0
             end = len(data)
+            if 'distance' in str_match:
+                start = last_find_offset + str_match['distance']
+            if 'within' in str_match:
+                end = last_find_offset + str_match['within']
             if 'offset' in str_match:
                 start = str_match['offset']
             if 'depth' in str_match:
                 end = start + str_match['depth']
             data = data[start:end]
-            if str_match['value'] in data:
+
+            str_finding = data.find(str_match['value'])
+            if str_finding != -1:
                 if str_match['do_match']:
                     does_match = does_match and True
                     matched_values.append(str_match['value'])
+                    last_find_offset = str_finding + len(str_match['value'])
                 else:
                     does_match = does_match and False
             else:
