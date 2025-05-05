@@ -5,7 +5,7 @@ build-backend = "pdm.backend"
 
 [project]
 name = "honeypoke-extractor"
-version = "0.4.0"
+version = "0.4.2"
 description = "Library for extracting and enriching data from HoneyPoke ElasticSearch instances."
 dependencies = [
     "requests==2.31.0",
@@ -17,7 +17,6 @@ dependencies = [
 ]
 authors = [
     {name = "Jacob Hartman", email = "jacob@j2h2.com"},
-    {name = "Jacob Hartman", email = "junyunharold1@gmail.com"},
 ]
 maintainers = [
     {name = "Jacob Hartman", email = "jacob@j2h2.com"},

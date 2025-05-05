@@ -41,9 +41,15 @@ class SnortRule():
         elif in_var == "$SSH_PORTS":
             return [22]
         elif ":" in in_var:
+            # print(in_var)
             colon_split = in_var.split(":")
-            start_int = int(colon_split[0])
-            end_int = int(colon_split[1])
+
+            start_int = 1
+            if colon_split[0] != "":
+                start_int = int(colon_split[0])
+            end_int = 65535
+            if colon_split[1] != "":
+                end_int = int(colon_split[1])
             new_range = []
             while start_int <= end_int:
                 new_range.append(start_int)
@@ -140,7 +146,7 @@ class SnortRule():
             elif option.name in ("reference", "metadata", "rev", "sid", "classtype", "fast_pattern", 'threshold'):
                 pass
             else:
-                print(option)
+                # print(option)
                 pass
         # print(self._str_matches[-1].get('sections', ''))
         # print("")
