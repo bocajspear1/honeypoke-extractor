@@ -139,17 +139,16 @@ class SnortRule():
                             re_flags |= regex.IGNORECASE
                         re_value = re_value[:-1]
                     re_value = re_value[:-1]
-                # print(option.value, re_value)
-                self._regex_matches.append({
-                    "value": regex.compile(re_value, flags=regex.POSIX)
-                })
+                try:
+                    self._regex_matches.append({
+                        "value": regex.compile(re_value, flags=regex.POSIX)
+                    })
+                except regex._regex_core.error:
+                    pass
             elif option.name in ("reference", "metadata", "rev", "sid", "classtype", "fast_pattern", 'threshold'):
                 pass
             else:
-                # print(option)
                 pass
-        # print(self._str_matches[-1].get('sections', ''))
-        # print("")
 
     def matches_data(self, protocol, port, data):
 
