@@ -1,3 +1,5 @@
+import logging
+
 from datetime import timedelta, datetime
 import socket
 
@@ -9,6 +11,8 @@ from pprint import pprint
 from honeypoke_extractor.base import IPEnrichmentProvider, PortEnrichmentProvider
 
 from elasticsearch import Elasticsearch
+
+logger = logging.getLogger(__name__)
 
 class HoneyPokeExtractor():
 
@@ -301,6 +305,8 @@ class HoneyPokeExtractor():
                 results = self._client.search(index=self._index, query=query, sort= [
                     {"time": "desc"}
                 ], size=limit)
+
+                logger.info("Got %d items", len(results['hits']['hits']))
 
                 if len(results['hits']['hits']) == 0:
                     amount_left = 0
